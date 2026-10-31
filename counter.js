@@ -21,8 +21,9 @@ const $ = (id) => document.getElementById(id);
 const count = $("count");
 const status = $("status");
 const error = $("error");
-const controls = ["increment", "decrement", "set-count", "reset"];
+const controls = ["increment", "decrement", "set-count", "add-count", "reset"];
 const targetInput = $("target-count");
+const addInput = $("add-count-value");
 let isAdmin = false;
 let busy = false;
 let pendingIncrements = 0;
@@ -48,10 +49,9 @@ function explain(err) {
 
 function setBusy(value) {
   busy = value;
-  for (const id of controls) {
-    if (id !== "set-count") $(id).disabled = !isAdmin || value;
-  }
+  for (const id of controls) $(id).disabled = !isAdmin || value;
   syncSetButton();
+  syncAddButton();
 }
 
 function syncSetButton() {
@@ -59,6 +59,13 @@ function syncSetButton() {
   const valid = value !== "" && Number.isSafeInteger(Number(value)) && Number(value) >= 0;
   $("set-count").classList.toggle("ready", valid);
   $("set-count").disabled = !isAdmin || busy || !valid;
+}
+
+function syncAddButton() {
+  const value = addInput.value;
+  const valid = value !== "" && Number.isSafeInteger(Number(value)) && Number(value) > 0;
+  $("add-count").classList.toggle("ready", valid);
+  $("add-count").disabled = !isAdmin || busy || !valid;
 }
 
 async function updateCount(update) {
@@ -92,6 +99,7 @@ $("login-form").addEventListener("submit", async (event) => {
 });
 
 targetInput.addEventListener("input", syncSetButton);
+addInput.addEventListener("input", syncAddButton);
 
 onAuthStateChanged(auth, async (user) => {
   isAdmin = false;
@@ -141,6 +149,26 @@ $("decrement").addEventListener("click", async () => {
   setBusy(true);
   try {
     await updateCount((current) => Math.max(0, current - 1));
+  } catch (err) {
+    showError(explain(err));
+  } finally {
+    setBusy(false);
+  }
+});
+
+$("add-count-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!isAdmin || busy) return;
+  const amount = Number(addInput.value);
+  if (!Number.isSafeInteger(amount) || amount <= 0) {
+    showError("1以上の整数を入力してください。");
+    return;
+  }
+  if (!confirm(`${amount.toLocaleString("ja-JP")} 人を追加します。よろしいですか？`)) return;
+  setBusy(true);
+  try {
+    await updateCount((current) => current + amount);
+    addInput.value = "";
   } catch (err) {
     showError(explain(err));
   } finally {
