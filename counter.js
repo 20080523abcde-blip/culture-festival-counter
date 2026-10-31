@@ -22,6 +22,7 @@ const count = $("count");
 const status = $("status");
 const error = $("error");
 const controls = ["increment", "decrement", "set-count", "reset"];
+const targetInput = $("target-count");
 let isAdmin = false;
 let busy = false;
 let pendingIncrements = 0;
@@ -47,7 +48,17 @@ function explain(err) {
 
 function setBusy(value) {
   busy = value;
-  for (const id of controls) $(id).disabled = !isAdmin || value;
+  for (const id of controls) {
+    if (id !== "set-count") $(id).disabled = !isAdmin || value;
+  }
+  syncSetButton();
+}
+
+function syncSetButton() {
+  const value = targetInput.value;
+  const valid = value !== "" && Number.isSafeInteger(Number(value)) && Number(value) >= 0;
+  $("set-count").classList.toggle("ready", valid);
+  $("set-count").disabled = !isAdmin || busy || !valid;
 }
 
 async function updateCount(update) {
@@ -79,6 +90,8 @@ $("login-form").addEventListener("submit", async (event) => {
     showError(explain(err));
   }
 });
+
+targetInput.addEventListener("input", syncSetButton);
 
 onAuthStateChanged(auth, async (user) => {
   isAdmin = false;
